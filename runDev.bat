@@ -1,0 +1,1 @@
+go run main.go fetch --url https://example  --method GET --workers 100

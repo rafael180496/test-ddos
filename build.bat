@@ -1,0 +1,1 @@
+go build -o myddos.exe main.go
