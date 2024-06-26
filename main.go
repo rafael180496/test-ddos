@@ -34,7 +34,7 @@ func main() {
 			}
 			d.Run()
 			d.Result()
-			fmt.Printf("\nDDoS attack server:%s", url)
+
 			// Output: DDoS attack server: http://127.0.0.1:80
 		},
 	}
